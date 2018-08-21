@@ -3,7 +3,11 @@ description: JSON for Humans
 google_analytics: UA-32213209-1
 show_downloads: false
 theme: jekyll-theme-minimal
-markdown: CommonMarkGhPages
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  
 
 gems:
   - jekyll-mentions
