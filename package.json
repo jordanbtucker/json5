@@ -14,13 +14,14 @@
   },
   "scripts": {
     "build": "rollup -c",
+    "build-docs": "node build/docs.js",
     "build-package": "node build/package.js",
     "build-unicode": "node build/unicode.js",
     "coverage": "tap --coverage-report html test",
     "lint": "eslint --fix .",
     "prepublishOnly": "npm run production",
     "preversion": "npm run production",
-    "production": "npm run lint && npm test && npm run build",
+    "production": "npm run lint && npm test && npm run build && npm run build-docs",
     "test": "tap -Rspec --100 test",
     "version": "npm run build-package && git add package.json5"
   },
@@ -50,6 +51,7 @@
     "minimist": "^1.2.0"
   },
   "devDependencies": {
+    "commonmark": "^0.28.1",
     "eslint": "^5.3.0",
     "eslint-config-standard": "^11.0.0",
     "eslint-plugin-import": "^2.14.0",
