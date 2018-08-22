@@ -149,13 +149,4 @@ li + li {
         width: 772px;
     }
 
-    pre {
-        max-width: 75%;
-    }
-}
-
-@media screen and (min-width: 1200px) {
-    body {
-        width: 1072px;
-    }
 }
