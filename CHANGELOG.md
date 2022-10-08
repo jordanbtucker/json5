@@ -16,9 +16,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `stringify` throws an error when serializing a BigInt instead of silently
   dropping it.
 - The browser bundles in `dist` have been renamed from `index.js` and
-  `index.min.js` to `json5.umd.js` and `json5.umd.min.js`.
-- The browser bundles in `dist` no longer contain any polyfills since modern
-  browsers support ES6.
+  `index.min.js` to `json5.umd.js`, which is always minified.
+- The browser bundle in `dist` supports browser versions at or newer than the
+  `defaults` query of `browserslist` v4.21.4. To view the list, run
+  `npx browserslist@=4.21.4 defaults`.
 - The ES modules bundles in `dist` have been removed until a better solution is
   found.
 - `lib/register.js` and `lib/require.js` have been removed since they rely on
