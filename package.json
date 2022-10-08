@@ -4,21 +4,24 @@
   "description": "JSON for Humans",
   "main": "lib/index.js",
   "browser": "dist/json5.umd.js",
-  "types": "lib/index.d.ts",
   "files": [
     "lib",
     "dist",
-    "package.json5"
+    "package.json5",
+    "src"
   ],
   "engines": {
     "node": "^14 || ^16 || >=18",
     "npm": ">=7"
   },
   "scripts": {
-    "build": "run-s -s clean rollup",
+    "build": "run-s -s build:lib build:dist",
+    "build:dist": "run-s -s clean:dist rollup",
+    "build:lib": "run-s -s clean:lib tsc",
     "changelog:check": "node scripts/changelog/check.js",
     "changelog:update": "node scripts/changelog/update.js",
-    "clean": "rimraf dist/*",
+    "clean:dist": "rimraf dist/*",
+    "clean:lib": "rimraf lib/*",
     "coverage": "run-s -c -s tap tap:coverage",
     "dependencies": "npm run -s package:update",
     "eslint": "eslint --fix .",
@@ -32,7 +35,8 @@
     "rollup": "rollup -c",
     "tap": "tap -R spec test",
     "tap:coverage": "tap --coverage-report html",
-    "test": "run-s -s format lint tap",
+    "test": "run-s -s format build:lib lint tap",
+    "tsc": "tsc",
     "unicode:update": "node scripts/unicode/update.js",
     "version": "run-s -s \"changelog:update -- --add\" \"package:update -- --add\""
   },
@@ -65,6 +69,8 @@
     "@rollup/plugin-commonjs": "^22.0.2",
     "@rollup/plugin-node-resolve": "^14.1.0",
     "@tsconfig/node14": "^1.0.3",
+    "@types/node": "^18.8.3",
+    "@types/tap": "^15.0.7",
     "@unicode/unicode-14.0.0": "^1.3.1",
     "chalk": "^5.0.1",
     "conventional-changelog-conventionalcommits": "^5.0.0",
@@ -83,6 +89,7 @@
     "rollup": "^2.79.1",
     "rollup-plugin-terser": "^7.0.2",
     "simple-git": "^3.14.1",
-    "tap": "^16.3.0"
+    "tap": "^16.3.0",
+    "typescript": "^4.8.4"
   }
 }

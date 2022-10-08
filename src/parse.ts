@@ -1,4 +1,4 @@
-const util = require('./util')
+import * as util from './util'
 
 let source
 let parseState
@@ -10,7 +10,19 @@ let token
 let key
 let root
 
-module.exports = function parse(text, reviver) {
+/**
+ * Parses a JSON5 string, constructing the JavaScript value or object described
+ * by the string.
+ * @template T The type of the return value.
+ * @param text The string to parse as JSON5.
+ * @param reviver A function that prescribes how the value originally produced
+ * by parsing is transformed before being returned.
+ * @returns The JavaScript value converted from the JSON5 string.
+ */
+export default function parse<T = any>(
+  text: string,
+  reviver?: ((this: any, key: string, value: any) => any) | null,
+): T {
   source = String(text)
   parseState = 'start'
   stack = []
@@ -700,7 +712,7 @@ const lexStates = {
   },
 }
 
-function newToken(type, value) {
+function newToken(type, value?) {
   return {
     type,
     value,
@@ -1100,7 +1112,10 @@ function formatChar(c) {
 }
 
 function syntaxError(message) {
-  const err = new SyntaxError(message)
+  const err: SyntaxError & {
+    lineNumber?: number
+    columnNumber?: number
+  } = new SyntaxError(message)
   err.lineNumber = line
   err.columnNumber = column
   return err

@@ -2,16 +2,16 @@
 
 /**
  * @file Generates RegExp objects for matching certain tokens and writes them to
- * `lib/unicode.js`.
+ * `src/unicode.ts`.
  */
 
 const fs = require('fs')
 const path = require('path')
 const regenerate = require('regenerate')
 
-async function main() {
-  const libDir = 'lib'
+const OUT_PATH = 'src/unicode.ts'
 
+async function main() {
   // Get all characters in the Unicode category Zs, excluding characters parsed
   // directly.
   const Space_Separator = regenerate()
@@ -66,12 +66,7 @@ async function main() {
     .removeRange('A', 'Z')
     .removeRange('a', 'z')
 
-  const outDir = libDir
-  const outPath = path.join(outDir, 'unicode.js')
-
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir)
-  }
+  fs.mkdirSync(path.dirname(OUT_PATH), {recursive: true})
 
   const data = {
     Space_Separator,
@@ -79,12 +74,12 @@ async function main() {
     ID_Continue,
   }
 
-  let es6 = '// This is a generated file. Do not edit.\n'
-  es6 += Object.keys(data)
-    .map(key => `module.exports.${key} = /${data[key]}/\n`)
-    .join('')
+  let ts = '// This is a generated file. Do not edit.\n'
+  for (const [name, value] of Object.entries(data)) {
+    ts += `export const ${name} = /${value}/\n`
+  }
 
-  fs.writeFileSync(outPath, es6)
+  fs.writeFileSync(OUT_PATH, ts)
 }
 
 main().catch(err => {

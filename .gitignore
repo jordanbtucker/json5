@@ -143,5 +143,6 @@ dist
 *.vsix
 
 /dist
+/lib
 /test/output.json
 /test/test.json

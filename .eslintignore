@@ -1,4 +1,5 @@
 /.nyc_output
 /coverage
 /dist
-/lib/unicode.js
+/lib
+/src/unicode.ts
