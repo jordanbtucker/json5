@@ -12,7 +12,7 @@
 
 const fs = require('fs')
 const {simpleGit} = require('simple-git')
-const JSON5 = require('../..')
+const JSON5 = require('json5')
 
 async function main() {
   const addArg = process.argv[2]
