@@ -22,7 +22,7 @@
     "changelog:update": "node scripts/changelog/update.js",
     "clean:dist": "rimraf dist/*",
     "clean:lib": "rimraf lib/*",
-    "coverage": "run-s -c -s tap tap:coverage",
+    "coverage": "run-s -c -s test tap:coverage",
     "dependencies": "npm run -s package:update",
     "eslint": "eslint --fix .",
     "format": "run-s -s prettier",
