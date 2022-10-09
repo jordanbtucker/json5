@@ -12,7 +12,7 @@
   },
   "overrides": [
     {
-      "files": ["scripts/**"],
+      "files": ["scripts/**/*.js"],
       "rules": {
         "n/shebang": "off"
       }
