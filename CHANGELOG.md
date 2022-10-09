@@ -38,6 +38,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixes
 
 - Properties with the name `__proto__` are added to objects and arrays. ([#199])
+- The `reviver` argument to `parse` cannot cause side effects if called
+  recursively.
 
 ## v2.2.1 - 2022-03-21
 
