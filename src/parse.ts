@@ -1,15 +1,47 @@
 import * as util from './util'
 
-let source
-let parseState
-let stack
-let pos
-let line
-let column
-let token
-let key
-let root
+type JSON5Value =
+  | boolean
+  | null
+  | number
+  | string
+  | JSON5Value[]
+  | {[key: string]: JSON5Value}
 
+type TokenType =
+  | 'boolean'
+  | 'eof'
+  | 'identifier'
+  | 'null'
+  | 'numeric'
+  | 'punctuator'
+  | 'string'
+
+type TokenValue = string | number | boolean | null
+
+type Token = {
+  type: TokenType
+  value?: TokenValue
+  line: number
+  column: number
+}
+
+interface JSON5SyntaxError extends SyntaxError {
+  lineNumber: number
+  columnNumber: number
+}
+
+let source: string
+let parseState: keyof typeof parseStates
+let stack: JSON5Value[]
+let pos: number
+let line: number
+let column: number
+let token: Token | undefined
+let key: PropertyKey | undefined
+let root: JSON5Value | undefined
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Parses a JSON5 string, constructing the JavaScript value or object described
  * by the string.
@@ -23,6 +55,7 @@ export default function parse<T = any>(
   text: string,
   reviver?: ((this: any, key: string, value: any) => any) | null,
 ): T {
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   source = String(text)
   parseState = 'start'
   stack = []
@@ -45,21 +78,29 @@ export default function parse<T = any>(
   } while (token.type !== 'eof')
 
   if (typeof reviver === 'function') {
-    return internalize({'': root}, '', reviver)
+    return internalize({'': root as unknown as JSON5Value}, '', reviver) as T
   }
 
-  return root
+  return root as T
 }
 
-function internalize(holder, name, reviver) {
+function internalize(
+  holder: {[key: string | number]: JSON5Value},
+  name: string,
+  reviver: (this: unknown, key: string, value: unknown) => unknown,
+): unknown {
   const value = holder[name]
   if (value != null && typeof value === 'object') {
     if (Array.isArray(value)) {
       for (let i = 0; i < value.length; i++) {
         const key = String(i)
-        const replacement = internalize(value, key, reviver)
+        const replacement = internalize(
+          value as {[key: number]: JSON5Value},
+          key,
+          reviver,
+        )
         if (replacement === undefined) {
-          delete value[key]
+          delete value[key as unknown as number]
         } else {
           Object.defineProperty(value, key, {
             value: replacement,
@@ -89,13 +130,13 @@ function internalize(holder, name, reviver) {
   return reviver.call(holder, name, value)
 }
 
-let lexState
-let buffer
-let doubleQuote
-let sign
-let c
+let lexState: keyof typeof lexStates | keyof typeof parseStates
+let buffer: string | undefined
+let doubleQuote: boolean
+let sign: number
+let c: string | undefined
 
-function lex() {
+function lex(): Token {
   lexState = 'default'
   buffer = ''
   doubleQuote = false
@@ -116,13 +157,13 @@ function lex() {
   }
 }
 
-function peek() {
+function peek(): string | undefined {
   if (source[pos]) {
-    return String.fromCodePoint(source.codePointAt(pos))
+    return String.fromCodePoint(source.codePointAt(pos) as number)
   }
 }
 
-function read() {
+function read(): string | undefined {
   const c = peek()
 
   if (c === '\n') {
@@ -142,7 +183,7 @@ function read() {
 }
 
 const lexStates = {
-  default() {
+  default(): Token | void {
     switch (c) {
       case '\t':
       case '\v':
@@ -180,7 +221,7 @@ const lexStates = {
     return lexStates[parseState]()
   },
 
-  comment() {
+  comment(): void {
     switch (c) {
       case '*':
         read()
@@ -196,7 +237,7 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  multiLineComment() {
+  multiLineComment(): void {
     switch (c) {
       case '*':
         read()
@@ -210,7 +251,7 @@ const lexStates = {
     read()
   },
 
-  multiLineCommentAsterisk() {
+  multiLineCommentAsterisk(): void {
     switch (c) {
       case '*':
         read()
@@ -229,7 +270,7 @@ const lexStates = {
     lexState = 'multiLineComment'
   },
 
-  singleLineComment() {
+  singleLineComment(): Token | undefined {
     switch (c) {
       case '\n':
       case '\r':
@@ -247,7 +288,7 @@ const lexStates = {
     read()
   },
 
-  value() {
+  value(): Token | undefined {
     switch (c) {
       case '{':
       case '[':
@@ -321,7 +362,7 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  identifierNameStartEscape() {
+  identifierNameStartEscape(): void {
     if (c !== 'u') {
       throw invalidChar(read())
     }
@@ -345,13 +386,13 @@ const lexStates = {
     lexState = 'identifierName'
   },
 
-  identifierName() {
+  identifierName(): Token | undefined {
     switch (c) {
       case '$':
       case '_':
       case '\u200C':
       case '\u200D':
-        buffer += read()
+        buffer += read() as string
         return
 
       case '\\':
@@ -361,14 +402,14 @@ const lexStates = {
     }
 
     if (util.isIdContinueChar(c)) {
-      buffer += read()
+      buffer += read() as string
       return
     }
 
     return newToken('identifier', buffer)
   },
 
-  identifierNameEscape() {
+  identifierNameEscape(): void {
     if (c !== 'u') {
       throw invalidChar(read())
     }
@@ -394,7 +435,7 @@ const lexStates = {
     lexState = 'identifierName'
   },
 
-  sign() {
+  sign(): Token | undefined {
     switch (c) {
       case '.':
         buffer = read()
@@ -433,22 +474,22 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  zero() {
+  zero(): Token | undefined {
     switch (c) {
       case '.':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalPoint'
         return
 
       case 'e':
       case 'E':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalExponent'
         return
 
       case 'x':
       case 'X':
-        buffer += read()
+        buffer += read() as string
         lexState = 'hexadecimal'
         return
     }
@@ -456,31 +497,31 @@ const lexStates = {
     return newToken('numeric', sign * 0)
   },
 
-  decimalInteger() {
+  decimalInteger(): Token | undefined {
     switch (c) {
       case '.':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalPoint'
         return
 
       case 'e':
       case 'E':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalExponent'
         return
     }
 
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       return
     }
 
     return newToken('numeric', sign * Number(buffer))
   },
 
-  decimalPointLeading() {
+  decimalPointLeading(): void {
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       lexState = 'decimalFraction'
       return
     }
@@ -488,17 +529,17 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  decimalPoint() {
+  decimalPoint(): Token | undefined {
     switch (c) {
       case 'e':
       case 'E':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalExponent'
         return
     }
 
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       lexState = 'decimalFraction'
       return
     }
@@ -506,34 +547,34 @@ const lexStates = {
     return newToken('numeric', sign * Number(buffer))
   },
 
-  decimalFraction() {
+  decimalFraction(): Token | undefined {
     switch (c) {
       case 'e':
       case 'E':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalExponent'
         return
     }
 
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       return
     }
 
     return newToken('numeric', sign * Number(buffer))
   },
 
-  decimalExponent() {
+  decimalExponent(): void {
     switch (c) {
       case '+':
       case '-':
-        buffer += read()
+        buffer += read() as string
         lexState = 'decimalExponentSign'
         return
     }
 
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       lexState = 'decimalExponentInteger'
       return
     }
@@ -541,9 +582,9 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  decimalExponentSign() {
+  decimalExponentSign(): void {
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       lexState = 'decimalExponentInteger'
       return
     }
@@ -551,18 +592,18 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  decimalExponentInteger() {
+  decimalExponentInteger(): Token | undefined {
     if (util.isDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       return
     }
 
     return newToken('numeric', sign * Number(buffer))
   },
 
-  hexadecimal() {
+  hexadecimal(): void {
     if (util.isHexDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       lexState = 'hexadecimalInteger'
       return
     }
@@ -570,16 +611,16 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  hexadecimalInteger() {
+  hexadecimalInteger(): Token | undefined {
     if (util.isHexDigit(c)) {
-      buffer += read()
+      buffer += read() as string
       return
     }
 
     return newToken('numeric', sign * Number(buffer))
   },
 
-  string() {
+  string(): Token | undefined {
     switch (c) {
       case '\\':
         read()
@@ -592,7 +633,7 @@ const lexStates = {
           return newToken('string', buffer)
         }
 
-        buffer += read()
+        buffer += read() as string
         return
 
       case "'":
@@ -601,7 +642,7 @@ const lexStates = {
           return newToken('string', buffer)
         }
 
-        buffer += read()
+        buffer += read() as string
         return
 
       case '\n':
@@ -612,10 +653,10 @@ const lexStates = {
         throw invalidChar(read())
     }
 
-    buffer += read()
+    buffer += read() as string
   },
 
-  start() {
+  start(): Token | undefined {
     switch (c) {
       case '{':
       case '[':
@@ -629,7 +670,7 @@ const lexStates = {
     lexState = 'value'
   },
 
-  beforePropertyName() {
+  beforePropertyName(): Token | undefined {
     switch (c) {
       case '$':
       case '_':
@@ -653,7 +694,7 @@ const lexStates = {
     }
 
     if (util.isIdStartChar(c)) {
-      buffer += read()
+      buffer += read() as string
       lexState = 'identifierName'
       return
     }
@@ -661,7 +702,7 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  afterPropertyName() {
+  afterPropertyName(): Token {
     if (c === ':') {
       return newToken('punctuator', read())
     }
@@ -669,11 +710,11 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  beforePropertyValue() {
+  beforePropertyValue(): void {
     lexState = 'value'
   },
 
-  afterPropertyValue() {
+  afterPropertyValue(): Token {
     switch (c) {
       case ',':
       case '}':
@@ -683,7 +724,7 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  beforeArrayValue() {
+  beforeArrayValue(): Token | undefined {
     if (c === ']') {
       return newToken('punctuator', read())
     }
@@ -691,7 +732,7 @@ const lexStates = {
     lexState = 'value'
   },
 
-  afterArrayValue() {
+  afterArrayValue(): Token {
     switch (c) {
       case ',':
       case ']':
@@ -701,7 +742,7 @@ const lexStates = {
     throw invalidChar(read())
   },
 
-  end() {
+  end(): never {
     // This code is unreachable since it's handled by the default lexState.
     // if (c === undefined) {
     //     read()
@@ -712,7 +753,7 @@ const lexStates = {
   },
 }
 
-function newToken(type, value?) {
+function newToken(type: TokenType, value?: TokenValue): Token {
   return {
     type,
     value,
@@ -721,7 +762,7 @@ function newToken(type, value?) {
   }
 }
 
-function literal(s) {
+function literal(s: string): void {
   for (const c of s) {
     const p = peek()
 
@@ -733,7 +774,7 @@ function literal(s) {
   }
 }
 
-function escape() {
+function escape(): string {
   const c = peek()
   switch (c) {
     case 'b':
@@ -805,10 +846,10 @@ function escape() {
       throw invalidChar(read())
   }
 
-  return read()
+  return read() as string
 }
 
-function hexEscape() {
+function hexEscape(): string {
   let buffer = ''
   let c = peek()
 
@@ -828,7 +869,7 @@ function hexEscape() {
   return String.fromCodePoint(parseInt(buffer, 16))
 }
 
-function unicodeEscape() {
+function unicodeEscape(): string {
   let buffer = ''
   let count = 4
 
@@ -845,19 +886,19 @@ function unicodeEscape() {
 }
 
 const parseStates = {
-  start() {
-    if (token.type === 'eof') {
+  start(): void {
+    if ((token as Token).type === 'eof') {
       throw invalidEOF()
     }
 
     push()
   },
 
-  beforePropertyName() {
-    switch (token.type) {
+  beforePropertyName(): void {
+    switch ((token as Token).type) {
       case 'identifier':
       case 'string':
-        key = token.value
+        key = (token as Token).value as string
         parseState = 'afterPropertyName'
         return
 
@@ -878,33 +919,36 @@ const parseStates = {
     // throw invalidToken()
   },
 
-  afterPropertyName() {
+  afterPropertyName(): void {
     // This code is unreachable since it's handled by the lexState.
     // if (token.type !== 'punctuator' || token.value !== ':') {
     //     throw invalidToken()
     // }
 
-    if (token.type === 'eof') {
+    if ((token as Token).type === 'eof') {
       throw invalidEOF()
     }
 
     parseState = 'beforePropertyValue'
   },
 
-  beforePropertyValue() {
-    if (token.type === 'eof') {
+  beforePropertyValue(): void {
+    if ((token as Token).type === 'eof') {
       throw invalidEOF()
     }
 
     push()
   },
 
-  beforeArrayValue() {
-    if (token.type === 'eof') {
+  beforeArrayValue(): void {
+    if ((token as Token).type === 'eof') {
       throw invalidEOF()
     }
 
-    if (token.type === 'punctuator' && token.value === ']') {
+    if (
+      (token as Token).type === 'punctuator' &&
+      (token as Token).value === ']'
+    ) {
       pop()
       return
     }
@@ -912,17 +956,17 @@ const parseStates = {
     push()
   },
 
-  afterPropertyValue() {
+  afterPropertyValue(): void {
     // This code is unreachable since it's handled by the lexState.
     // if (token.type !== 'punctuator') {
     //     throw invalidToken()
     // }
 
-    if (token.type === 'eof') {
+    if ((token as Token).type === 'eof') {
       throw invalidEOF()
     }
 
-    switch (token.value) {
+    switch ((token as Token).value) {
       case ',':
         parseState = 'beforePropertyName'
         return
@@ -935,17 +979,17 @@ const parseStates = {
     // throw invalidToken()
   },
 
-  afterArrayValue() {
+  afterArrayValue(): void {
     // This code is unreachable since it's handled by the lexState.
     // if (token.type !== 'punctuator') {
     //     throw invalidToken()
     // }
 
-    if (token.type === 'eof') {
+    if ((token as Token).type === 'eof') {
       throw invalidEOF()
     }
 
-    switch (token.value) {
+    switch ((token as Token).value) {
       case ',':
         parseState = 'beforeArrayValue'
         return
@@ -958,7 +1002,7 @@ const parseStates = {
     // throw invalidToken()
   },
 
-  end() {
+  end(): void {
     // This code is unreachable since it's handled by the lexState.
     // if (token.type !== 'eof') {
     //     throw invalidToken()
@@ -966,12 +1010,12 @@ const parseStates = {
   },
 }
 
-function push() {
-  let value
+function push(): void {
+  let value: JSON5Value = undefined as unknown as JSON5Value
 
-  switch (token.type) {
+  switch ((token as Token).type) {
     case 'punctuator':
-      switch (token.value) {
+      switch ((token as Token).value) {
         case '{':
           value = {}
           break
@@ -987,7 +1031,7 @@ function push() {
     case 'boolean':
     case 'numeric':
     case 'string':
-      value = token.value
+      value = (token as Token).value as TokenValue
       break
 
     // This code is unreachable.
@@ -1002,7 +1046,7 @@ function push() {
     if (Array.isArray(parent)) {
       parent.push(value)
     } else {
-      Object.defineProperty(parent, key, {
+      Object.defineProperty(parent, key as PropertyKey, {
         value,
         writable: true,
         enumerable: true,
@@ -1031,7 +1075,7 @@ function push() {
   }
 }
 
-function pop() {
+function pop(): void {
   stack.pop()
 
   const current = stack[stack.length - 1]
@@ -1054,7 +1098,7 @@ function pop() {
 //     return new Error(`JSON5: invalid lex state '${state}'`)
 // }
 
-function invalidChar(c) {
+function invalidChar(c: string | undefined): JSON5SyntaxError {
   if (c === undefined) {
     return syntaxError(`JSON5: invalid end of input at ${line}:${column}`)
   }
@@ -1064,7 +1108,7 @@ function invalidChar(c) {
   )
 }
 
-function invalidEOF() {
+function invalidEOF(): JSON5SyntaxError {
   return syntaxError(`JSON5: invalid end of input at ${line}:${column}`)
 }
 
@@ -1078,13 +1122,13 @@ function invalidEOF() {
 //     return syntaxError(`JSON5: invalid character '${formatChar(c)}' at ${line}:${column}`)
 // }
 
-function invalidIdentifier() {
+function invalidIdentifier(): JSON5SyntaxError {
   column -= 5
   return syntaxError(`JSON5: invalid identifier character at ${line}:${column}`)
 }
 
-function formatChar(c) {
-  const replacements = {
+function formatChar(c: string): string {
+  const replacements: Record<string, string> = {
     "'": "\\'",
     '"': '\\"',
     '\\': '\\\\',
@@ -1111,11 +1155,8 @@ function formatChar(c) {
   return c
 }
 
-function syntaxError(message) {
-  const err: SyntaxError & {
-    lineNumber?: number
-    columnNumber?: number
-  } = new SyntaxError(message)
+function syntaxError(message: string): JSON5SyntaxError {
+  const err = new SyntaxError(message) as JSON5SyntaxError
   err.lineNumber = line
   err.columnNumber = column
   return err

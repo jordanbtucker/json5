@@ -1,5 +1,17 @@
+/* eslint-disable import/export */
+// https://github.com/import-js/eslint-plugin-import/issues/1590
+
 import * as util from './util'
 
+type HasToJSON5 = {
+  toJSON5(key?: string): unknown
+}
+
+type HasToJSON = {
+  toJSON(key?: string): unknown
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type StringifyOptions = {
   /**
    * A function that alters the behavior of the stringification process, or an
@@ -90,15 +102,22 @@ export default function stringify(value: any, options: StringifyOptions): string
 
 export default function stringify(
   value: any,
-  replacer: any,
-  space?: any,
+  replacer?:
+    | ((this: any, key: string, value: any) => any)
+    | (string | number)[]
+    | StringifyOptions
+    | null,
+  space?: string | number | null,
 ): string {
-  const stack = []
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  const stack: (Record<string, unknown> | unknown)[] = []
   let indent = ''
-  let propertyList
-  let replacerFunc
+  let propertyList: string[]
+  let replacerFunc:
+    | ((this: unknown, key: string, value: unknown) => unknown)
+    | undefined
   let gap = ''
-  let quote
+  let quote: string | null | undefined
 
   if (
     replacer != null &&
@@ -121,8 +140,8 @@ export default function stringify(
         item = v
       } else if (
         typeof v === 'number' ||
-        v instanceof String ||
-        v instanceof Number
+        (v as unknown) instanceof String ||
+        (v as unknown) instanceof Number
       ) {
         item = String(v)
       }
@@ -133,30 +152,33 @@ export default function stringify(
     }
   }
 
-  if (space instanceof Number) {
+  if ((space as unknown) instanceof Number) {
     space = Number(space)
-  } else if (space instanceof String) {
+  } else if ((space as unknown) instanceof String) {
     space = String(space)
   }
 
   if (typeof space === 'number') {
     if (space > 0) {
       space = Math.min(10, Math.floor(space))
-      gap = '          '.substr(0, space)
+      gap = '          '.substring(0, space)
     }
   } else if (typeof space === 'string') {
-    gap = space.substr(0, 10)
+    gap = space.substring(0, 10)
   }
 
-  return serializeProperty('', {'': value})
+  return serializeProperty('', {'': value as unknown}) as string
 
-  function serializeProperty(key, holder) {
+  function serializeProperty(
+    key: string,
+    holder: {[key: string | number]: unknown},
+  ): string | undefined {
     let value = holder[key]
     if (value != null) {
-      if (typeof value.toJSON5 === 'function') {
-        value = value.toJSON5(key)
-      } else if (typeof value.toJSON === 'function') {
-        value = value.toJSON(key)
+      if (typeof (value as HasToJSON5).toJSON5 === 'function') {
+        value = (value as HasToJSON5).toJSON5(key)
+      } else if (typeof (value as HasToJSON).toJSON === 'function') {
+        value = (value as HasToJSON).toJSON(key)
       }
     }
 
@@ -196,19 +218,19 @@ export default function stringify(
     if (typeof value === 'object') {
       return Array.isArray(value)
         ? serializeArray(value)
-        : serializeObject(value)
+        : serializeObject(value as Record<string, unknown>)
     }
 
     return undefined
   }
 
-  function quoteString(value) {
-    const quotes = {
+  function quoteString(value: string): string {
+    const quotes: Record<string, number> = {
       "'": 0.1,
       '"': 0.2,
     }
 
-    const replacements = {
+    const replacements: Record<string, string> = {
       "'": "\\'",
       '"': '\\"',
       '\\': '\\\\',
@@ -247,7 +269,7 @@ export default function stringify(
       }
 
       if (c < ' ') {
-        let hexString = c.charCodeAt(0).toString(16)
+        const hexString = c.charCodeAt(0).toString(16)
         product += '\\x' + ('00' + hexString).substring(hexString.length)
         continue
       }
@@ -267,18 +289,18 @@ export default function stringify(
     return quoteChar + product + quoteChar
   }
 
-  function serializeObject(value) {
+  function serializeObject(value: Record<string, unknown>): string {
     if (stack.indexOf(value) >= 0) {
       throw TypeError('Converting circular structure to JSON5')
     }
 
     stack.push(value)
 
-    let stepback = indent
+    const stepback = indent
     indent = indent + gap
 
-    let keys = propertyList || Object.keys(value)
-    let partial = []
+    const keys = propertyList || Object.keys(value)
+    const partial = []
     for (const key of keys) {
       const propertyString = serializeProperty(key, value)
       if (propertyString !== undefined) {
@@ -300,7 +322,7 @@ export default function stringify(
         properties = partial.join(',')
         final = '{' + properties + '}'
       } else {
-        let separator = ',\n' + indent
+        const separator = ',\n' + indent
         properties = partial.join(separator)
         final = '{\n' + indent + properties + ',\n' + stepback + '}'
       }
@@ -311,18 +333,22 @@ export default function stringify(
     return final
   }
 
-  function serializeKey(key) {
+  function serializeKey(key: string): string {
     if (key.length === 0) {
       return quoteString(key)
     }
 
-    const firstChar = String.fromCodePoint(key.codePointAt(0))
+    const firstChar = String.fromCodePoint(key.codePointAt(0) as number)
     if (!util.isIdStartChar(firstChar)) {
       return quoteString(key)
     }
 
     for (let i = firstChar.length; i < key.length; i++) {
-      if (!util.isIdContinueChar(String.fromCodePoint(key.codePointAt(i)))) {
+      if (
+        !util.isIdContinueChar(
+          String.fromCodePoint(key.codePointAt(i) as number),
+        )
+      ) {
         return quoteString(key)
       }
     }
@@ -330,19 +356,22 @@ export default function stringify(
     return key
   }
 
-  function serializeArray(value) {
+  function serializeArray(value: unknown[]): string {
     if (stack.indexOf(value) >= 0) {
       throw TypeError('Converting circular structure to JSON5')
     }
 
     stack.push(value)
 
-    let stepback = indent
+    const stepback = indent
     indent = indent + gap
 
-    let partial = []
+    const partial = []
     for (let i = 0; i < value.length; i++) {
-      const propertyString = serializeProperty(String(i), value)
+      const propertyString = serializeProperty(
+        String(i),
+        value as unknown as {[key: string | number]: unknown},
+      )
       partial.push(propertyString !== undefined ? propertyString : 'null')
     }
 
@@ -351,11 +380,11 @@ export default function stringify(
       final = '[]'
     } else {
       if (gap === '') {
-        let properties = partial.join(',')
+        const properties = partial.join(',')
         final = '[' + properties + ']'
       } else {
-        let separator = ',\n' + indent
-        let properties = partial.join(separator)
+        const separator = ',\n' + indent
+        const properties = partial.join(separator)
         final = '[\n' + indent + properties + ',\n' + stepback + ']'
       }
     }

@@ -1,10 +1,10 @@
 import * as unicode from './unicode'
 
-export function isSpaceSeparator(c?: string) {
+export function isSpaceSeparator(c?: string): boolean {
   return typeof c === 'string' && unicode.Space_Separator.test(c)
 }
 
-export function isIdStartChar(c?: string) {
+export function isIdStartChar(c?: string): boolean {
   return (
     typeof c === 'string' &&
     ((c >= 'a' && c <= 'z') ||
@@ -15,7 +15,7 @@ export function isIdStartChar(c?: string) {
   )
 }
 
-export function isIdContinueChar(c?: string) {
+export function isIdContinueChar(c?: string): boolean {
   return (
     typeof c === 'string' &&
     ((c >= 'a' && c <= 'z') ||
@@ -29,10 +29,10 @@ export function isIdContinueChar(c?: string) {
   )
 }
 
-export function isDigit(c?: string) {
+export function isDigit(c?: string): boolean {
   return typeof c === 'string' && /[0-9]/.test(c)
 }
 
-export function isHexDigit(c?: string) {
+export function isHexDigit(c?: string): boolean {
   return typeof c === 'string' && /[0-9A-Fa-f]/.test(c)
 }

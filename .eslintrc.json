@@ -16,6 +16,33 @@
       "rules": {
         "n/shebang": "off"
       }
+    },
+    {
+      "files": ["**/*.ts"],
+      "extends": [
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/recommended-requiring-type-checking",
+        "plugin:import/typescript",
+        "plugin:n/recommended-module",
+        "prettier"
+      ],
+      "parserOptions": {
+        "project": "tsconfig.eslint.json"
+      },
+      "rules": {
+        "n/no-missing-import": "off",
+        "n/no-unsupported-features/es-syntax": "off",
+        "@typescript-eslint/explicit-function-return-type": "error"
+      },
+      "settings": {
+        "import/resolver": "typescript"
+      }
+    },
+    {
+      "files": ["src/**/*.ts"],
+      "parserOptions": {
+        "project": "tsconfig.json"
+      }
     }
   ]
 }
